@@ -1,0 +1,8 @@
+server:
+  port: 8001
+spring:
+  application:
+    name: qrCodeServer
+dest:
+  path: E:\\qrcodeTest
+  url: http://www.test.com
