@@ -1,31 +1,23 @@
 package com.syz.eurekaserver.utils;
 
+import com.google.gson.Gson;
+import com.google.zxing.*;
+import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import com.syz.eurekaserver.vo.RequestQrCodeVO;
+
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
-
-import javax.imageio.ImageIO;
-
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.Binarizer;
-import com.google.zxing.BinaryBitmap;
-import com.google.zxing.EncodeHintType;
-import com.google.zxing.LuminanceSource;
-import com.google.zxing.MultiFormatReader;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.Result;
-import com.google.zxing.WriterException;
-import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.common.HybridBinarizer;
-
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import java.util.Map;
 
 
 public class QRCodeUtil {
@@ -365,41 +357,81 @@ public class QRCodeUtil {
     }
 
     public static void main(String[] args) throws Exception {
-//        String url = "http://www.baidu.com";  //这里设置自定义网站url
-//        String logoPath = "E:\\qrcodeTest\\logo.jpg";
-//        String destPath = "E:\\qrcodeTest";
-//        QRCodeUtil.encode(url, logoPath, destPath);
-        QRCodeUtil.saveToFile("https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1596190690982&di=4b8edeec77fe699b086fec3505919e66&imgtype=0&src=http%3A%2F%2Fimg3.doubanio.com%2Fview%2Fnote%2Fl%2Fpublic%2Fp46003132.jpg");
+        RequestQrCodeVO vo = new RequestQrCodeVO();
+        vo.setLogo("https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1596190690982&di=4b8edeec77fe699b086fec3505919e66&imgtype=0&src=http%3A%2F%2Fimg3.doubanio.com%2Fview%2Fnote%2Fl%2Fpublic%2Fp46003132.jpg");
+        vo.setUrl("http://www.kingdee.com");
+        String destPath = "E:\\qrcodeTest";
+        String fileName = destPath + File.separator + QRCodeUtil.encode(vo.getUrl(),vo.getLogo(),destPath);
+        String s = QRDecodeToString(fileName);
+        System.out.println(s);
     }
 
-    public static void saveToFile(String destUrl) {
-        FileOutputStream fos = null;
-        BufferedInputStream bis = null;
-        HttpURLConnection httpUrl = null;
-        URL url = null;
-        int BUFFER_SIZE = 1024;
-        byte[] buf = new byte[BUFFER_SIZE];
-        int size = 0;
-        try {
-            url = new URL(destUrl);
-            httpUrl = (HttpURLConnection) url.openConnection();
-            httpUrl.connect();
-            bis = new BufferedInputStream(httpUrl.getInputStream());
-            fos = new FileOutputStream("E:\\qrcodeTest\\kingdee.jpg");
-            while ((size = bis.read(buf)) != -1) {
-                fos.write(buf, 0, size);
-            }
-            fos.flush();
-        } catch (IOException e) {
-        } catch (ClassCastException e) {
-        } finally {
-            try {
-                fos.close();
-                bis.close();
-                httpUrl.disconnect();
-            } catch (IOException e) {
-            } catch (NullPointerException e) {
-            }
-        }
+    /**
+     * QRDecode to Content  二维码解码成字符串
+     * @param filepath 图片文件路径
+     * @return content 字符串内容
+     * @throws FileNotFoundException
+     * @throws IOException
+     * @throws NotFoundException
+     */
+    public static String QRDecodeToString(String filepath) throws FileNotFoundException, IOException, NotFoundException{
+        return QRDecodeToString(new FileInputStream(filepath));
     }
+
+    /**
+     * QRDecode to Content 二维码解码
+     * @param is InputStream of Image File 图片输入流
+     * @return content 内容
+     * @throws FileNotFoundException
+     * @throws IOException
+     * @throws NotFoundException
+     */
+    public static String QRDecodeToString(InputStream is) throws FileNotFoundException, IOException, NotFoundException{
+        BufferedImage image=ImageIO.read(is);
+        LuminanceSource source=new BufferedImageLuminanceSource(image);
+        Binarizer binarizer=new HybridBinarizer(source);
+        BinaryBitmap bitmap=new BinaryBitmap(binarizer);
+        Map<DecodeHintType,Object> map=new HashMap<DecodeHintType, Object>();
+        map.put(DecodeHintType.CHARACTER_SET, "UTF-8");
+        Result result=null;
+        try{
+            result = new MultiFormatReader().decode(bitmap,map);
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+        if(result!=null)
+            return result.getText();
+        else
+            return null;
+    }
+
+    /**
+     * decode QRCode json格式内容二维码解码成实体类
+     * @param <T>
+     * @param filePath 图片文件路径
+     * @param clazz Class of target Pojo 实体类的Class对象
+     * @return Pojo 实体类对象
+     * @throws FileNotFoundException
+     * @throws NotFoundException
+     * @throws IOException
+     */
+    public static <T> Object QRDecodeToObject(String filePath,Class<T> clazz) throws FileNotFoundException, NotFoundException, IOException{
+        return QRDecodeToObject(new FileInputStream(filePath), clazz);
+    }
+
+    /**
+     * decode QRCode
+     * @param <T>
+     * @param is 图片输入流
+     * @param clazz Class of target Pojo
+     * @return Pojo
+     * @throws FileNotFoundException
+     * @throws NotFoundException
+     * @throws IOException
+     */
+    public static <T> Object QRDecodeToObject(InputStream is,Class<T> clazz) throws FileNotFoundException, NotFoundException, IOException{
+        InputStreamReader reader=new InputStreamReader(is);
+        return new Gson().fromJson(reader, clazz);
+    }
+
 }
